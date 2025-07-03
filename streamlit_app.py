@@ -5,20 +5,18 @@ st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wid
 
 st.title("🌦️ Dashboard Cuaca Tol Tangerang-Merak")
 
-# Link CSV dari Google Sheets yang kamu buat
+# Link CSV Google Sheets (jangan ubah kalau sudah benar)
 csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
 
-# Load data CSV
 try:
     df = pd.read_csv(csv_url)
 except Exception as e:
-    st.error(f"Gagal mengambil data dari CSV! Error: {e}")
+    st.error(f"Gagal mengambil data dari Google Sheets CSV: {e}")
     st.stop()
 
-# Tampilkan semua kolom yang ditemukan
 st.write("Kolom yang ditemukan di data:", df.columns.tolist())
 
-# Deteksi kolom lokasi
+# Deteksi kolom lokasi otomatis
 kolom_lokasi = None
 for kandidat in ["Lokasi", "Gerbang"]:
     if kandidat in df.columns:
@@ -30,13 +28,9 @@ if kolom_lokasi is None:
     st.dataframe(df)
     st.stop()
 
-# Dropdown untuk memilih lokasi
 lokasi = st.selectbox("📍 Pilih Lokasi", df[kolom_lokasi].unique())
-
-# Data untuk lokasi terpilih
 lokasi_data = df[df[kolom_lokasi] == lokasi].iloc[0]
 
-# Layout dua kolom
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -45,7 +39,6 @@ with col1:
     st.metric("💧 Kelembapan (%)", lokasi_data.get('Kelembapan (%)', 'N/A'))
     st.metric("🌬️ Kecepatan Angin (m/s)", lokasi_data.get('Kecepatan Angin (m/s)', 'N/A'))
     st.metric("🌧️ Curah Hujan (mm)", lokasi_data.get('Curah Hujan (mm)', 'N/A'))
-
     st.write(f"**📝 Deskripsi Cuaca:** {lokasi_data.get('Deskripsi Cuaca', 'N/A')}")
 
 with col2:
@@ -56,6 +49,5 @@ with col2:
     else:
         st.write("Tidak ada ikon cuaca tersedia.")
 
-# Footer
 st.markdown("---")
-st.caption("Data cuaca real-time berdasarkan OpenWeather API. Dibuat oleh [Your Name].")
+st.caption("Data cuaca real-time berdasarkan OpenWeather API. Dibuat oleh [esferrohman].")
