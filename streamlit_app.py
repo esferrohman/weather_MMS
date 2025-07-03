@@ -3,31 +3,59 @@ import pandas as pd
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
-sheet_url = "https://docs.google.com/spreadsheets/d/1pFMn_7LRET1x3vqKbGsBrFBrNjl3GQl_cDxvXyVTIHs/export?format=csv&gid=0"
+st.title("🌦️ Dashboard Cuaca Tol Tangerang-Merak")
 
-st.title("Dashboard Cuaca Tol Tangerang-Merak")
+# Link CSV dari Google Sheets yang kamu buat
+csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
 
+# Load data CSV
 try:
-    df = pd.read_csv(sheet_url)
+    df = pd.read_csv(csv_url)
 except Exception as e:
-    st.error(f"Gagal mengambil data: {e}")
+    st.error(f"Gagal mengambil data dari CSV! Error: {e}")
     st.stop()
 
-st.subheader("Data Cuaca Terbaru")
-st.dataframe(df)
+# Tampilkan semua kolom yang ditemukan
+st.write("Kolom yang ditemukan di data:", df.columns.tolist())
 
-lokasi = st.selectbox("Pilih Lokasi", df['Lokasi'].unique())
-lokasi_data = df[df['Lokasi'] == lokasi].iloc[0]
+# Deteksi kolom lokasi
+kolom_lokasi = None
+for kandidat in ["Lokasi", "Gerbang"]:
+    if kandidat in df.columns:
+        kolom_lokasi = kandidat
+        break
 
-st.write(f"**Lokasi:** {lokasi}")
-st.metric("Temperatur (°C)", lokasi_data["Temperatur (°C)"])
-st.metric("Kelembapan (%)", lokasi_data["Kelembapan (%)"])
-st.metric("Kecepatan Angin (m/s)", lokasi_data["Kecepatan Angin (m/s)"])
-st.metric("Curah Hujan (mm)", lokasi_data["Curah Hujan (mm)"])
-st.write(f"**Deskripsi Cuaca:** {lokasi_data['Deskripsi Cuaca']}")
+if kolom_lokasi is None:
+    st.error("Kolom 'Lokasi' atau 'Gerbang' tidak ditemukan di data CSV!")
+    st.dataframe(df)
+    st.stop()
 
-st.subheader("Grafik Temperatur Semua Lokasi")
-st.bar_chart(df.set_index("Lokasi")["Temperatur (°C)"])
+# Dropdown untuk memilih lokasi
+lokasi = st.selectbox("📍 Pilih Lokasi", df[kolom_lokasi].unique())
 
-st.subheader("Grafik Curah Hujan Semua Lokasi")
-st.bar_chart(df.set_index("Lokasi")["Curah Hujan (mm)"])
+# Data untuk lokasi terpilih
+lokasi_data = df[df[kolom_lokasi] == lokasi].iloc[0]
+
+# Layout dua kolom
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.header(f"📊 Data Cuaca di {lokasi}")
+    st.metric("🌡️ Temperatur (°C)", lokasi_data.get('Temperatur (°C)', 'N/A'))
+    st.metric("💧 Kelembapan (%)", lokasi_data.get('Kelembapan (%)', 'N/A'))
+    st.metric("🌬️ Kecepatan Angin (m/s)", lokasi_data.get('Kecepatan Angin (m/s)', 'N/A'))
+    st.metric("🌧️ Curah Hujan (mm)", lokasi_data.get('Curah Hujan (mm)', 'N/A'))
+
+    st.write(f"**📝 Deskripsi Cuaca:** {lokasi_data.get('Deskripsi Cuaca', 'N/A')}")
+
+with col2:
+    icon_code = lokasi_data.get('Ikon', '')
+    if isinstance(icon_code, str) and icon_code != '':
+        icon_url = f"http://openweathermap.org/img/wn/{icon_code}@4x.png"
+        st.image(icon_url, caption="Ikon Cuaca dari OpenWeather", use_column_width=True)
+    else:
+        st.write("Tidak ada ikon cuaca tersedia.")
+
+# Footer
+st.markdown("---")
+st.caption("Data cuaca real-time berdasarkan OpenWeather API. Dibuat oleh [Your Name].")
