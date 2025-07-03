@@ -5,7 +5,7 @@ st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wid
 
 st.title("🌦️ Dashboard Cuaca Tol Tangerang-Merak")
 
-# Link CSV Google Sheets (jangan ubah kalau sudah benar)
+# Link CSV Google Sheets
 csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
 
 try:
@@ -45,7 +45,7 @@ with col2:
     icon_code = lokasi_data.get('Ikon', '')
     if isinstance(icon_code, str) and icon_code != '':
         icon_url = f"http://openweathermap.org/img/wn/{icon_code}@4x.png"
-        st.image(icon_url, caption="Ikon Cuaca dari OpenWeather", use_column_width=True)
+        st.image(icon_url, caption="Ikon Cuaca dari OpenWeather", use_container_width=True)
     else:
         st.write("Tidak ada ikon cuaca tersedia.")
 
