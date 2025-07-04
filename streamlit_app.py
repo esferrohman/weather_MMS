@@ -7,7 +7,7 @@ st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wid
 
 st.write("🚨 Ini kode terbaru berjalan 🚨")
 
-# Tambahkan CSS untuk deskripsi besar
+# CSS untuk deskripsi cuaca besar
 st.markdown("""
     <style>
         html, body, [class*="css"] {
@@ -35,24 +35,32 @@ except Exception as e:
     st.error(f"Gagal mengambil data Summary: {e}")
     st.stop()
 
-# Pastikan kolom waktu update bertipe datetime
+# Konversi kolom update ke datetime
 df_summary['Update Terakhir (WIB)'] = pd.to_datetime(df_summary['Update Terakhir (WIB)'], errors='coerce')
 
-# Urutkan supaya baris terbaru di atas per Lokasi
+# Urutkan supaya baris terbaru di atas
 df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascending=[True, False])
 
-# Pilih lokasi di sidebar
+# Sidebar: logo, dropdown, info waktu update
 with st.sidebar:
     st.image("Logo_MMS.png", caption="PT MMS", use_container_width=True)
     st.title("Dashboard Cuaca")
     lokasi_unik = df_summary['Lokasi'].dropna().unique()
     lokasi = st.selectbox("📍 Pilih Lokasi", lokasi_unik)
+    
+    # Ambil histori & data terbaru lokasi terpilih
+    df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
+    data_terbaru = df_hist_lokasi.iloc[0]
+    
+    # Tampilkan info update tepat di bawah dropdown
+    waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
+    if pd.notnull(waktu_update):
+        st.markdown(
+            f"<p style='font-size:0.9em; color:#333;'>🕒 Data terakhir diperbarui:<br><b>{waktu_update.strftime('%d %B %Y %H:%M WIB')}</b></p>",
+            unsafe_allow_html=True
+        )
 
-# Ambil histori & data terbaru untuk lokasi terpilih
-df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
-data_terbaru = df_hist_lokasi.iloc[0]
-
-# Header & metrik
+# Header & metrik utama
 st.header(f"📊 Cuaca Terbaru di {lokasi}")
 col1, col2 = st.columns([2, 1])
 with col1:
@@ -87,12 +95,7 @@ if isinstance(kode_koordinat, str) and "," in kode_koordinat:
 else:
     st.warning("Koordinat tidak valid untuk lokasi ini.")
 
-# Info waktu update
-waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
-if pd.notnull(waktu_update):
-    st.info(f"🕒 Data terakhir diperbarui: {waktu_update}")
-
-# Grafik histori tren jika cukup data
+# Grafik histori tren
 if len(df_hist_lokasi) > 1:
     st.subheader(f"📈 Tren Histori Cuaca di {lokasi}")
     df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
@@ -107,3 +110,4 @@ else:
 
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
+
