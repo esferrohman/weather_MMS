@@ -6,7 +6,6 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 st.title("🌦️ Dashboard Cuaca Tol Tangerang-Merak")
 
-# Link CSV Google Sheets
 csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
 
 try:
@@ -15,31 +14,19 @@ except Exception as e:
     st.error(f"Gagal mengambil data dari Google Sheets CSV: {e}")
     st.stop()
 
-# Deteksi kolom lokasi otomatis
-kolom_lokasi = None
-for kandidat in ["Lokasi", "Gerbang"]:
-    if kandidat in df.columns:
-        kolom_lokasi = kandidat
-        break
-
-if kolom_lokasi is None:
-    st.error("Kolom 'Lokasi' atau 'Gerbang' tidak ditemukan di data CSV!")
+# Deteksi kolom lokasi dan kode koordinat
+if "Lokasi" not in df.columns or "Kode Koordinat" not in df.columns:
+    st.error("Kolom 'Lokasi' dan 'Kode Koordinat' tidak ditemukan di data CSV!")
     st.dataframe(df)
     st.stop()
 
-# Pastikan Latitude & Longitude tersedia
-if not all(k in df.columns for k in ["Latitude", "Longitude"]):
-    st.error("Kolom Latitude & Longitude tidak ditemukan di data!")
-    st.dataframe(df)
-    st.stop()
-
-lokasi = st.selectbox("📍 Pilih Lokasi", df[kolom_lokasi].unique())
-lokasi_data = df[df[kolom_lokasi] == lokasi].iloc[0]
+lokasi_pilihan = st.selectbox("📍 Pilih Lokasi", df["Lokasi"].unique())
+lokasi_data = df[df["Lokasi"] == lokasi_pilihan].iloc[0]
 
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.header(f"📊 Data Cuaca di {lokasi}")
+    st.header(f"📊 Data Cuaca di {lokasi_pilihan}")
     st.metric("🌡️ Temperatur (°C)", lokasi_data.get('Temperatur (°C)', 'N/A'))
     st.metric("💧 Kelembapan (%)", lokasi_data.get('Kelembapan (%)', 'N/A'))
     st.metric("🌬️ Kecepatan Angin (m/s)", lokasi_data.get('Kecepatan Angin (m/s)', 'N/A'))
@@ -54,22 +41,24 @@ with col2:
     else:
         st.write("Tidak ada ikon cuaca tersedia.")
 
-st.markdown("---")
-
-# Peta interaktif
+# Peta interaktif dengan folium
 try:
-    lat, lon = float(lokasi_data['Latitude']), float(lokasi_data['Longitude'])
-    m = folium.Map(location=[lat, lon], zoom_start=12)
-    folium.Marker(
-        location=[lat, lon],
-        popup=f"<b>{lokasi}</b><br>{lokasi_data['Deskripsi Cuaca']}",
-        tooltip=lokasi,
-        icon=folium.Icon(color="blue", icon="info-sign"),
-    ).add_to(m)
+    latlon = lokasi_data["Kode Koordinat"].split(",")
+    lat, lon = float(latlon[0]), float(latlon[1])
 
     st.header("🗺️ Peta Lokasi")
-    st_folium(m, width=700, height=500)
-except Exception as e:
-    st.error(f"Gagal membuat peta: {e}")
 
+    m = folium.Map(location=[lat, lon], zoom_start=12)
+    folium.Marker(
+        [lat, lon],
+        tooltip=f"{lokasi_pilihan}: {lokasi_data.get('Deskripsi Cuaca', 'N/A')}",
+        icon=folium.Icon(color="blue", icon="cloud")
+    ).add_to(m)
+
+    st_data = st_folium(m, width=700, height=500)
+
+except Exception as e:
+    st.warning(f"Tidak dapat menampilkan peta: {e}")
+
+st.markdown("---")
 st.caption("Data cuaca real-time berdasarkan OpenWeather API. Dibuat oleh [esferrohman].")
