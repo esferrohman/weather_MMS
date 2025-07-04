@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
+import folium
+from streamlit_folium import st_folium
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
-
 st.title("🌦️ Dashboard Cuaca Tol Tangerang-Merak")
 
 # Link CSV Google Sheets
@@ -14,8 +15,6 @@ except Exception as e:
     st.error(f"Gagal mengambil data dari Google Sheets CSV: {e}")
     st.stop()
 
-st.write("Kolom yang ditemukan di data:", df.columns.tolist())
-
 # Deteksi kolom lokasi otomatis
 kolom_lokasi = None
 for kandidat in ["Lokasi", "Gerbang"]:
@@ -25,6 +24,12 @@ for kandidat in ["Lokasi", "Gerbang"]:
 
 if kolom_lokasi is None:
     st.error("Kolom 'Lokasi' atau 'Gerbang' tidak ditemukan di data CSV!")
+    st.dataframe(df)
+    st.stop()
+
+# Pastikan Latitude & Longitude tersedia
+if not all(k in df.columns for k in ["Latitude", "Longitude"]):
+    st.error("Kolom Latitude & Longitude tidak ditemukan di data!")
     st.dataframe(df)
     st.stop()
 
@@ -50,4 +55,21 @@ with col2:
         st.write("Tidak ada ikon cuaca tersedia.")
 
 st.markdown("---")
+
+# Peta interaktif
+try:
+    lat, lon = float(lokasi_data['Latitude']), float(lokasi_data['Longitude'])
+    m = folium.Map(location=[lat, lon], zoom_start=12)
+    folium.Marker(
+        location=[lat, lon],
+        popup=f"<b>{lokasi}</b><br>{lokasi_data['Deskripsi Cuaca']}",
+        tooltip=lokasi,
+        icon=folium.Icon(color="blue", icon="info-sign"),
+    ).add_to(m)
+
+    st.header("🗺️ Peta Lokasi")
+    st_folium(m, width=700, height=500)
+except Exception as e:
+    st.error(f"Gagal membuat peta: {e}")
+
 st.caption("Data cuaca real-time berdasarkan OpenWeather API. Dibuat oleh [esferrohman].")
