@@ -7,8 +7,6 @@ import io
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
-st.write("🚨 Ini kode terbaru berjalan 🚨")
-
 # CSS untuk deskripsi cuaca besar
 st.markdown("""
     <style>
@@ -45,7 +43,7 @@ df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascendi
 
 # Sidebar: logo, dropdown, info waktu update
 with st.sidebar:
-    st.image("Logo_MMS.png", caption="PT MMS", use_container_width=True)
+    st.image("Logo_MMS.png", use_container_width=True)
     st.title("Dashboard Cuaca")
     lokasi_unik = df_summary['Lokasi'].dropna().unique()
     lokasi = st.selectbox("📍 Pilih Lokasi", lokasi_unik)
@@ -68,7 +66,7 @@ if pd.notnull(data_terbaru['Update Terakhir (WIB)']):
     df_hist_lokasi = df_hist_lokasi[df_hist_lokasi['Update Terakhir (WIB)'].dt.date == tanggal_terbaru]
 
 # Header & metrik utama
-st.header(f"📊 Cuaca Terbaru di {lokasi}")
+st.header(f"📊 Cuaca Terkini di {lokasi}")
 col1, col2 = st.columns([2, 1])
 with col1:
     st.metric("🌡️ Temperatur (°C)", data_terbaru.get('Temperatur (°C)', 'N/A'))
