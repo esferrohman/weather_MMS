@@ -16,7 +16,6 @@ st.markdown("""
         p.deskripsi-cuaca {
             text-align: center;
             font-size: 2em !important;
-            font-weight: bold;
             margin: 0.5em 0;
         }
     </style>
@@ -115,25 +114,30 @@ else:
 # Kondisi cuaca lokasi lainnya
 st.subheader("📍 Kondisi Cuaca Lokasi Lainnya")
 
-data_lainnya = (
+# Ambil data terbaru per lokasi lain dan buat dict {lokasi: row}
+data_lainnya_df = (
     df_summary[df_summary['Lokasi'] != lokasi]
     .sort_values('Update Terakhir (WIB)', ascending=False)
     .drop_duplicates('Lokasi')
+    .set_index('Lokasi')
 )
 
-if not data_lainnya.empty:
-    cols = st.columns(len(data_lainnya))
-    for idx, (_, row) in enumerate(data_lainnya.iterrows()):
-        loc_name = row.get('Lokasi', 'N/A')
+# Susun data lainnya sesuai urutan dropdown
+lokasi_lain_urut = [loc for loc in lokasi_order if loc != lokasi and loc in data_lainnya_df.index]
+
+if lokasi_lain_urut:
+    cols = st.columns(len(lokasi_lain_urut))
+    for idx, loc_name in enumerate(lokasi_lain_urut):
+        row = data_lainnya_df.loc[loc_name]
         icon_code = str(row.get('Ikon', '') or '')
         curah_hujan = row.get('Curah Hujan (mm)', 0)
-        
+
         # Highlight jika ada hujan
         bg_style = "background-color:#ffe6e6; padding:4px; border-radius:8px;" if pd.notnull(curah_hujan) and curah_hujan > 0 else ""
-        
+
         with cols[idx]:
             st.markdown(
-                f"<div style='text-align:center; font-weight:bold; font-size:0.9em; {bg_style}'>{loc_name}</div>",
+                f"<div style='text-align:center; font-size:0.9em; {bg_style}'>{loc_name}</div>",
                 unsafe_allow_html=True
             )
             if icon_code:
