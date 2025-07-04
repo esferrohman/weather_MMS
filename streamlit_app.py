@@ -124,10 +124,20 @@ data_lainnya = (
 if not data_lainnya.empty:
     cols = st.columns(len(data_lainnya))
     for idx, (_, row) in enumerate(data_lainnya.iterrows()):
+        loc_name = row.get('Lokasi', 'N/A')
         icon_code = str(row.get('Ikon', '') or '')
-        if icon_code:
-            icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
-            with cols[idx]:
+        curah_hujan = row.get('Curah Hujan (mm)', 0)
+        
+        # Highlight jika ada hujan
+        bg_style = "background-color:#ffe6e6; padding:4px; border-radius:8px;" if pd.notnull(curah_hujan) and curah_hujan > 0 else ""
+        
+        with cols[idx]:
+            st.markdown(
+                f"<div style='text-align:center; font-weight:bold; font-size:0.9em; {bg_style}'>{loc_name}</div>",
+                unsafe_allow_html=True
+            )
+            if icon_code:
+                icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
                 st.image(icon_url, use_container_width=True)
 else:
     st.info("Tidak ada data kondisi lokasi lainnya yang tersedia.")
