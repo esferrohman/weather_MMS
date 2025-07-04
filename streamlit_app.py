@@ -110,4 +110,3 @@ else:
 
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
-
