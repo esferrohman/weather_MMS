@@ -128,7 +128,7 @@ if not data_lainnya.empty:
         if icon_code:
             icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
             with cols[idx]:
-                st.image(icon_url, use_column_width=True)
+                st.image(icon_url, use_container_width=True)
 else:
     st.info("Tidak ada data kondisi lokasi lainnya yang tersedia.")
 
