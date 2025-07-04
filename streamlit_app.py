@@ -112,6 +112,26 @@ if isinstance(kode_koordinat, str) and "," in kode_koordinat:
 else:
     st.warning("Koordinat tidak valid untuk lokasi ini.")
 
+# Kondisi cuaca lokasi lainnya
+st.subheader("📍 Kondisi Cuaca Lokasi Lainnya")
+
+data_lainnya = (
+    df_summary[df_summary['Lokasi'] != lokasi]
+    .sort_values('Update Terakhir (WIB)', ascending=False)
+    .drop_duplicates('Lokasi')
+)
+
+if not data_lainnya.empty:
+    cols = st.columns(len(data_lainnya))
+    for idx, (_, row) in enumerate(data_lainnya.iterrows()):
+        icon_code = str(row.get('Ikon', '') or '')
+        if icon_code:
+            icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
+            with cols[idx]:
+                st.image(icon_url, use_column_width=True)
+else:
+    st.info("Tidak ada data kondisi lokasi lainnya yang tersedia.")
+
 # Grafik histori tren per parameter + satu tombol download CSV
 if len(df_hist_lokasi) > 1:
     st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
