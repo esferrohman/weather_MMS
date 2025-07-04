@@ -62,6 +62,11 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
+# Filter histori hanya untuk tanggal yang sama dengan data terbaru
+if pd.notnull(data_terbaru['Update Terakhir (WIB)']):
+    tanggal_terbaru = data_terbaru['Update Terakhir (WIB)'].date()
+    df_hist_lokasi = df_hist_lokasi[df_hist_lokasi['Update Terakhir (WIB)'].dt.date == tanggal_terbaru]
+
 # Header & metrik utama
 st.header(f"📊 Cuaca Terbaru di {lokasi}")
 col1, col2 = st.columns([2, 1])
@@ -99,7 +104,7 @@ else:
 
 # Grafik histori tren per parameter + satu tombol download CSV
 if len(df_hist_lokasi) > 1:
-    st.subheader(f"📈 Tren Histori Cuaca di {lokasi}")
+    st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
     df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
     
     param_list = [
@@ -118,16 +123,16 @@ if len(df_hist_lokasi) > 1:
     if not any_chart:
         st.info("Kolom tren numerik yang dipilih tidak ditemukan.")
     else:
-        # Tombol download CSV semua histori lokasi
+        # Tombol download CSV semua histori hari ini
         csv_data = df_hist_lokasi.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="💾 Download Data Histori CSV",
+            label="💾 Download Data Histori Hari Ini (CSV)",
             data=csv_data,
-            file_name=f"{lokasi}_histori_cuaca.csv",
+            file_name=f"{lokasi}_histori_cuaca_hari_ini.csv",
             mime="text/csv"
         )
 else:
-    st.info("Belum ada data histori yang cukup untuk menampilkan grafik tren.")
+    st.info("Belum ada cukup data histori untuk hari ini untuk menampilkan grafik tren.")
 
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
