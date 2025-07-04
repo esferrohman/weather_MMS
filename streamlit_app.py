@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
+import matplotlib.pyplot as plt
+import io
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
@@ -95,16 +97,35 @@ if isinstance(kode_koordinat, str) and "," in kode_koordinat:
 else:
     st.warning("Koordinat tidak valid untuk lokasi ini.")
 
-# Grafik histori tren
+# Grafik histori tren per parameter + satu tombol download CSV
 if len(df_hist_lokasi) > 1:
     st.subheader(f"📈 Tren Histori Cuaca di {lokasi}")
     df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
-    cols_trend = ['Temperatur (°C)', 'Kelembapan (%)', 'Kecepatan Angin (m/s)', 'Curah Hujan (mm)']
-    cols_trend = [col for col in cols_trend if col in df_plot.columns]
-    if cols_trend:
-        st.line_chart(df_plot[cols_trend])
+    
+    param_list = [
+        ("Curah Hujan (mm)", "🌧️ Curah Hujan"),
+        ("Temperatur (°C)", "🌡️ Temperatur"),
+        ("Kelembapan (%)", "💧 Kelembapan")
+    ]
+    
+    any_chart = False
+    for col, title in param_list:
+        if col in df_plot.columns:
+            st.write(title)
+            st.line_chart(df_plot[[col]])
+            any_chart = True
+            
+    if not any_chart:
+        st.info("Kolom tren numerik yang dipilih tidak ditemukan.")
     else:
-        st.info("Kolom tren numerik tidak ditemukan.")
+        # Tombol download CSV semua histori lokasi
+        csv_data = df_hist_lokasi.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="💾 Download Data Histori CSV",
+            data=csv_data,
+            file_name=f"{lokasi}_histori_cuaca.csv",
+            mime="text/csv"
+        )
 else:
     st.info("Belum ada data histori yang cukup untuk menampilkan grafik tren.")
 
