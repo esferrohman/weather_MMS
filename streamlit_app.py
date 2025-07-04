@@ -39,17 +39,15 @@ df_summary['Update Terakhir (WIB)'] = pd.to_datetime(df_summary['Update Terakhir
 # Urutkan data terbaru ke atas
 df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascending=[True, False])
 
-# Ambil lokasi unik
-lokasi_unik = df_summary['Lokasi'].unique()
-
 # Tampilkan logo & dropdown di sidebar
 with st.sidebar:
     st.image("Logo_MMS.png", caption="PT MMS", use_container_width=True)
     st.title("Dashboard Cuaca")
+    lokasi_unik = df_summary['Lokasi'].dropna().unique()
     lokasi = st.selectbox("📍 Pilih Lokasi", lokasi_unik)
 
 # Filter histori untuk lokasi terpilih
-df_lokasi_hist = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)')
+df_lokasi_hist = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
 
 # Ambil baris terbaru untuk lokasi
 data_lokasi = df_lokasi_hist.iloc[0]
