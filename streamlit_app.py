@@ -52,23 +52,23 @@ with st.sidebar:
 # Main content
 def display_weather():
     df = load_weather_data()
-    
+
     today = pd.Timestamp.now(tz=timezone('Asia/Jakarta')).date()
     target_date = today if period == "Hari Ini" else today - pd.Timedelta(days=1)
-    
+
     station_data = df[(df['Lokasi'] == location) & (df['Waktu'].dt.date == target_date)]
-    
+
     if station_data.empty:
         st.warning(f"Data tidak tersedia untuk {location} pada {period.lower()}.")
         return
-    
+
     # Urutkan agar data terbaru di atas
     station_data = station_data.sort_values('Waktu', ascending=False)
     latest = station_data.iloc[0]
-    
+
     # Gunakan ikon default jika kosong
     icon_code = latest['Ikon'] if pd.notna(latest['Ikon']) and latest['Ikon'].strip() else '01d'
-    
+
     st.markdown(f"""
         <div class="weather-header">
             <img src="http://openweathermap.org/img/wn/{icon_code}@2x.png" width=120>
@@ -76,7 +76,7 @@ def display_weather():
             <p><small>Terakhir update: {latest['Waktu'].strftime('%H:%M WIB')}</small></p>
         </div>
     """, unsafe_allow_html=True)
-    
+
     cols = st.columns(2)
     metrics = [
         ("🌡️ Temperatur", f"{latest.get('Temperatur', 'N/A')}°C"),
@@ -84,10 +84,10 @@ def display_weather():
         ("🌬️ Kecepatan Angin", f"{latest.get('Kecepatan Angin', 'N/A')} m/s"),
         ("🌧️ Curah Hujan", f"{latest.get('Curah Hujan', 'N/A')} mm")
     ]
-    
+
     for i, (label, value) in enumerate(metrics):
         cols[i % 2].markdown(f"<div class='weather-metric'>{label} {value}</div>", unsafe_allow_html=True)
-    
+
     coords = latest.get('Koordinat')
     if show_map and coords and isinstance(coords, str) and coords.strip():
         try:
