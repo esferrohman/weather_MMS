@@ -3,7 +3,7 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 import os
-from pytz import timezone
+from pytz import timezone, UTC, FixedOffset
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
@@ -49,54 +49,54 @@ def load_summary(url):
 
     return df.sort_values('Update Terakhir (WIB)', ascending=False)
 
-def render_sidebar():
+def render_sidebar(lokasi_urut):
     with st.sidebar:
         if os.path.exists("Logo_MMS.png"):
             st.image("Logo_MMS.png", use_container_width=True)
         else:
             st.warning("Logo tidak ditemukan.")
         st.title("Dashboard Cuaca")
+        selected_location = st.selectbox("Pilih Lokasi", lokasi_urut)
+        selected_period = st.selectbox("Pilih Periode Data", ["Hari ini", "Kemarin"])
+    return selected_location, selected_period
 
-def render_summary_chart(df_summary):
-    st.subheader("📈 Tren Curah Hujan Hari Ini (Gabungan Seluruh Lokasi)")
-    now_wib = pd.Timestamp.now(tz=timezone('Asia/Jakarta')).date()
-    df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == now_wib]
+def render_summary_chart(df_summary, selected_period):
+    st.subheader(f"📈 Tren Curah Hujan ({selected_period}) - Gabungan Seluruh Lokasi")
+    wib_tz = timezone('Asia/Jakarta')
+    today_wib = pd.Timestamp.now(tz=wib_tz).date()
+    if selected_period == "Hari ini":
+        filter_date = today_wib
+    else:  # Kemarin
+        filter_date = today_wib - pd.Timedelta(days=1)
 
-    if not df_hari_ini.empty:
-        df_hari_ini = df_hari_ini.copy()
-        df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
-        df_tren = df_hari_ini.groupby('Jam')['Curah Hujan (mm)'].sum().dropna()
+    df_filtered = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == filter_date]
+
+    if not df_filtered.empty:
+        df_filtered = df_filtered.copy()
+        df_filtered['Jam'] = df_filtered['Update Terakhir (WIB)'].dt.floor('H')
+        df_tren = df_filtered.groupby('Jam')['Curah Hujan (mm)'].sum().dropna()
         if not df_tren.empty:
             st.line_chart(df_tren)
         else:
-            st.info("Belum ada data curah hujan hari ini.")
+            st.info("Tidak ada data curah hujan pada periode ini.")
     else:
-        st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
+        st.info("Belum ada data cuaca pada periode ini dari semua lokasi.")
 
-def render_location_buttons(df_summary, lokasi_urut):
-    st.subheader("Kondisi Cuaca Terkini")
-    data_lokasi_df = df_summary.drop_duplicates('Lokasi').set_index('Lokasi')
-    selected_location = None
-    chunk_size = 6
-    for i in range(0, len(lokasi_urut), chunk_size):
-        cols = st.columns(chunk_size)
-        for j, loc_name in enumerate(lokasi_urut[i:i+chunk_size]):
-            if loc_name in data_lokasi_df.index:
-                row = data_lokasi_df.loc[loc_name]
-                icon_code = str(row.get('Ikon', '') or '')
-                loc_label = loc_name.replace(" ", "\n")
-                with cols[j]:
-                    if len(icon_code) >= 2:
-                        icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
-                        st.image(icon_url, use_container_width=True)
-                    if st.button(loc_label, key=f"btn-{loc_name}"):
-                        selected_location = loc_name
-    return selected_location if selected_location else lokasi_urut[0]
+def render_selected_location(df_summary, lokasi, selected_period):
+    wib_tz = timezone('Asia/Jakarta')
+    today_wib = pd.Timestamp.now(tz=wib_tz).date()
+    if selected_period == "Hari ini":
+        filter_date = today_wib
+    else:
+        filter_date = today_wib - pd.Timedelta(days=1)
 
-def render_selected_location(df_summary, lokasi):
-    df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi]
+    df_hist_lokasi = df_summary[
+        (df_summary['Lokasi'] == lokasi) &
+        (df_summary['Update Terakhir (WIB)'].dt.date == filter_date)
+    ]
+
     if df_hist_lokasi.empty:
-        st.error(f"Tidak ada data untuk lokasi: {lokasi}")
+        st.error(f"Tidak ada data untuk lokasi '{lokasi}' pada periode {selected_period}.")
         return
 
     data_terbaru = df_hist_lokasi.iloc[0]
@@ -108,7 +108,7 @@ def render_selected_location(df_summary, lokasi):
             unsafe_allow_html=True
         )
 
-    st.header(f"📊 Cuaca Terkini di {lokasi}")
+    st.header(f"📊 Cuaca {selected_period} di {lokasi}")
     col1, col2 = st.columns([2, 1])
     with col1:
         st.metric("🌡️ Temperatur (°C)", data_terbaru.get('Temperatur (°C)', 'N/A'))
@@ -145,11 +145,8 @@ def render_selected_location(df_summary, lokasi):
     else:
         st.warning("Koordinat tidak valid untuk lokasi ini.")
 
-    now_wib = pd.Timestamp.now(tz=timezone('Asia/Jakarta')).date()
-    df_hist_lokasi = df_hist_lokasi[df_hist_lokasi['Update Terakhir (WIB)'].dt.date == now_wib]
-
     if len(df_hist_lokasi) > 1:
-        st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
+        st.subheader(f"📈 Tren Histori Cuaca {selected_period} di {lokasi}")
         df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
         param_list = [
             ("Curah Hujan (mm)", "🌧️ Curah Hujan"),
@@ -165,15 +162,15 @@ def render_selected_location(df_summary, lokasi):
         if any_chart:
             csv_data = df_hist_lokasi.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="💾 Download Data Histori Hari Ini (CSV)",
+                label="💾 Download Data Histori (CSV)",
                 data=csv_data,
-                file_name=f"{lokasi}_histori_cuaca_hari_ini.csv",
+                file_name=f"{lokasi}_histori_cuaca_{selected_period.replace(' ', '_').lower()}.csv",
                 mime="text/csv"
             )
         else:
             st.info("Kolom tren tidak ditemukan.")
     else:
-        st.info("Belum ada cukup data histori untuk hari ini.")
+        st.info("Belum ada cukup data histori untuk periode ini.")
 
 def render_footer():
     st.markdown("---")
@@ -189,8 +186,7 @@ except Exception as e:
 lokasi_tersedia = df_summary['Lokasi'].dropna().unique()
 lokasi_urut = [loc for loc in LOKASI_ORDER if loc in lokasi_tersedia]
 
-render_sidebar()
-selected_location = render_location_buttons(df_summary, lokasi_urut)
-render_summary_chart(df_summary)
-render_selected_location(df_summary, selected_location)
+selected_location, selected_period = render_sidebar(lokasi_urut)
+render_summary_chart(df_summary, selected_period)
+render_selected_location(df_summary, selected_location, selected_period)
 render_footer()
