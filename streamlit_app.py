@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
-# CSS deskripsi cuaca lebih besar
 st.markdown("""
     <style>
         html, body, [class*="css"] {
@@ -20,7 +19,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Load data
 summary_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
 
 @st.cache_data(ttl=600)
@@ -39,8 +37,8 @@ except Exception as e:
     st.error(f"Gagal mengambil data Summary: {e}")
     st.stop()
 
-# Urutkan data terbaru
-df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascending=[True, False])
+# Urutkan data terbaru secara global supaya filter hari ini tetap akurat meski data terbaru di baris bawah spreadsheet
+df_summary = df_summary.sort_values('Update Terakhir (WIB)', ascending=False)
 
 lokasi_order = [
     "Bitung", "Cikupa", "Balaraja Timur", "Balaraja Barat", "Cikande",
@@ -50,16 +48,13 @@ lokasi_order = [
 lokasi_tersedia = df_summary['Lokasi'].dropna().unique()
 lokasi_urut = [loc for loc in lokasi_order if loc in lokasi_tersedia]
 
-# Sidebar: logo
 with st.sidebar:
     st.image("Logo_MMS.png", use_container_width=True)
     st.title("Dashboard Cuaca")
 
-# Pilih lokasi dengan ikon interaktif
 st.subheader("📍 Pilih Lokasi dengan Klik Ikon")
 data_lainnya_df = (
     df_summary
-    .sort_values('Update Terakhir (WIB)', ascending=False)
     .drop_duplicates('Lokasi')
     .set_index('Lokasi')
 )
@@ -77,14 +72,11 @@ for idx, loc_name in enumerate(lokasi_urut):
             if st.button(loc_name):
                 selected_location = loc_name
 
-# Default ke lokasi pertama jika belum ada yang diklik
 lokasi = selected_location if selected_location else lokasi_urut[0]
 
-# Data histori dan data terbaru
-df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
+df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi]
 data_terbaru = df_hist_lokasi.iloc[0]
 
-# Info waktu update
 waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
 if pd.notnull(waktu_update):
     st.markdown(
@@ -92,12 +84,10 @@ if pd.notnull(waktu_update):
         unsafe_allow_html=True
     )
 
-# Filter histori hanya data per jam hari ini
 if pd.notnull(data_terbaru['Update Terakhir (WIB)']):
     tanggal_terbaru = data_terbaru['Update Terakhir (WIB)'].date()
     df_hist_lokasi = df_hist_lokasi[df_hist_lokasi['Update Terakhir (WIB)'].dt.date == tanggal_terbaru]
 
-# Data utama lokasi terpilih
 st.header(f"📊 Cuaca Terkini di {lokasi}")
 col1, col2 = st.columns([2, 1])
 with col1:
@@ -122,7 +112,6 @@ with col2:
     else:
         st.write("Tidak ada ikon cuaca tersedia.")
 
-# Peta interaktif
 kode_koordinat = data_terbaru.get('Kode Koordinat', '')
 if isinstance(kode_koordinat, str) and "," in kode_koordinat:
     try:
@@ -136,24 +125,20 @@ if isinstance(kode_koordinat, str) and "," in kode_koordinat:
 else:
     st.warning("Koordinat tidak valid untuk lokasi ini.")
 
-# Grafik histori tren per lokasi
 if len(df_hist_lokasi) > 1:
     st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
     df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
-    
     param_list = [
         ("Curah Hujan (mm)", "🌧️ Curah Hujan"),
         ("Temperatur (°C)", "🌡️ Temperatur"),
         ("Kelembapan (%)", "💧 Kelembapan")
     ]
-    
     any_chart = False
     for col, title in param_list:
         if col in df_plot.columns:
             st.write(title)
             st.line_chart(df_plot[[col]])
             any_chart = True
-            
     if not any_chart:
         st.info("Kolom tren numerik yang dipilih tidak ditemukan.")
     else:
@@ -167,35 +152,30 @@ if len(df_hist_lokasi) > 1:
 else:
     st.info("Belum ada cukup data histori untuk hari ini untuk menampilkan grafik tren.")
 
-# Grafik tren cuaca seluruh lokasi hari ini
 st.subheader("📈 Tren Cuaca Sepanjang Hari Ini (Gabungan Seluruh Lokasi)")
-
-if 'Update Terakhir (WIB)' in df_summary.columns:
-    df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == pd.Timestamp.now().date()]
-    if not df_hari_ini.empty:
-        df_hari_ini = df_hari_ini.copy()
-        df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
-        
-        df_tren = df_hari_ini.groupby('Jam').agg({
-            'Temperatur (°C)': 'mean',
-            'Kelembapan (%)': 'mean',
-            'Curah Hujan (mm)': 'sum'
-        }).dropna(how='all')
-        
-        if not df_tren.empty:
-            if 'Curah Hujan (mm)' in df_tren.columns:
-                st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
-                st.line_chart(df_tren[['Curah Hujan (mm)']])
-            if 'Temperatur (°C)' in df_tren.columns:
-                st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
-                st.line_chart(df_tren[['Temperatur (°C)']])
-            if 'Kelembapan (%)' in df_tren.columns:
-                st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
-                st.line_chart(df_tren[['Kelembapan (%)']])
-        else:
-            st.info("Belum ada data tren gabungan hari ini.")
+df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == pd.Timestamp.now().date()]
+if not df_hari_ini.empty:
+    df_hari_ini = df_hari_ini.copy()
+    df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
+    df_tren = df_hari_ini.groupby('Jam').agg({
+        'Temperatur (°C)': 'mean',
+        'Kelembapan (%)': 'mean',
+        'Curah Hujan (mm)': 'sum'
+    }).dropna(how='all')
+    if not df_tren.empty:
+        if 'Curah Hujan (mm)' in df_tren.columns:
+            st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
+            st.line_chart(df_tren[['Curah Hujan (mm)']])
+        if 'Temperatur (°C)' in df_tren.columns:
+            st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
+            st.line_chart(df_tren[['Temperatur (°C)']])
+        if 'Kelembapan (%)' in df_tren.columns:
+            st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
+            st.line_chart(df_tren[['Kelembapan (%)']])
     else:
-        st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
+        st.info("Belum ada data tren gabungan hari ini.")
+else:
+    st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
 
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
