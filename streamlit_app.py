@@ -3,11 +3,10 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 import matplotlib.pyplot as plt
-import io
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
-# CSS untuk deskripsi cuaca besar
+# CSS untuk deskripsi cuaca lebih besar
 st.markdown("""
     <style>
         html, body, [class*="css"] {
@@ -28,11 +27,11 @@ summary_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqD
 def load_summary(url):
     df = pd.read_csv(url)
     
-    # Kolom update waktu
+    # Pastikan kolom update waktu ke datetime
     if 'Update Terakhir (WIB)' in df.columns:
         df['Update Terakhir (WIB)'] = pd.to_datetime(df['Update Terakhir (WIB)'], errors='coerce')
     
-    # Bersihkan kolom Curah Hujan (mm): ganti koma ke titik → konversi ke numeric
+    # Bersihkan kolom Curah Hujan (mm): koma ke titik → konversi ke numeric
     if 'Curah Hujan (mm)' in df.columns:
         df['Curah Hujan (mm)'] = (
             df['Curah Hujan (mm)']
@@ -94,9 +93,13 @@ with col2:
     icon_code = str(data_terbaru.get('Ikon', '') or '')
     if icon_code:
         icon_url = f"http://openweathermap.org/img/wn/{icon_code}@4x.png"
-        st.image(icon_url, use_container_width=True)
         st.markdown(
-            f"<p class='deskripsi-cuaca'>{data_terbaru.get('Deskripsi Cuaca', '')}</p>",
+            f"""
+            <div style='text-align:center;'>
+                <img src="{icon_url}" style="width:100%; max-width:300px; margin-bottom:0.2em;" />
+                <p class='deskripsi-cuaca'>{data_terbaru.get('Deskripsi Cuaca', '')}</p>
+            </div>
+            """,
             unsafe_allow_html=True
         )
     else:
@@ -132,8 +135,7 @@ if lokasi_lain_urut:
     for idx, loc_name in enumerate(lokasi_lain_urut):
         row = data_lainnya_df.loc[loc_name]
         icon_code = str(row.get('Ikon', '') or '')
-        curah_hujan_raw = row.get('Curah Hujan (mm)', 0)
-        curah_hujan = pd.to_numeric(curah_hujan_raw, errors='coerce')
+        curah_hujan = row.get('Curah Hujan (mm)', 0)
         bg_style = "background-color:#ffe6e6; padding:4px; border-radius:8px;" if pd.notnull(curah_hujan) and curah_hujan > 0 else ""
 
         with cols[idx]:
