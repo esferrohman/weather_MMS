@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
@@ -25,34 +24,28 @@ summary_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqD
 def load_summary(url):
     df = pd.read_csv(url)
 
-    # Parsing waktu: pastikan format sesuai spreadsheet dd/mm/yyyy hh:mm:ss
     if 'Update Terakhir (WIB)' in df.columns:
         df['Update Terakhir (WIB)'] = pd.to_datetime(
             df['Update Terakhir (WIB)'],
             format='%d/%m/%Y %H:%M:%S',
-            errors='coerce'  # parsing gagal → NaT
+            errors='coerce'
         )
     else:
-        st.error("Kolom 'Update Terakhir (WIB)' tidak ditemukan di data CSV!")
+        st.error("Kolom 'Update Terakhir (WIB)' tidak ditemukan!")
         st.stop()
 
     if 'Curah Hujan (mm)' in df.columns:
         df['Curah Hujan (mm)'] = df['Curah Hujan (mm)'].astype(str).str.replace(',', '.', regex=False)
         df['Curah Hujan (mm)'] = pd.to_numeric(df['Curah Hujan (mm)'], errors='coerce')
 
-    # Debug: tampilkan parsing waktu
-    st.write("Contoh parsing waktu:", df['Update Terakhir (WIB)'].head(5))
-    st.write("Jumlah baris gagal parsing (NaT):", df['Update Terakhir (WIB)'].isna().sum())
-
     return df
 
 try:
     df_summary = load_summary(summary_url)
 except Exception as e:
-    st.error(f"Gagal mengambil data Summary: {e}")
+    st.error(f"Gagal memuat data: {e}")
     st.stop()
 
-# Urutkan data terbaru secara global supaya filter hari ini tetap akurat
 df_summary = df_summary.sort_values('Update Terakhir (WIB)', ascending=False)
 
 lokasi_order = [
@@ -68,12 +61,7 @@ with st.sidebar:
     st.title("Dashboard Cuaca")
 
 st.subheader("📍 Pilih Lokasi dengan Klik Ikon")
-data_lainnya_df = (
-    df_summary
-    .drop_duplicates('Lokasi')
-    .set_index('Lokasi')
-)
-
+data_lainnya_df = df_summary.drop_duplicates('Lokasi').set_index('Lokasi')
 selected_location = None
 cols = st.columns(len(lokasi_urut))
 for idx, loc_name in enumerate(lokasi_urut):
@@ -154,9 +142,7 @@ if len(df_hist_lokasi) > 1:
             st.write(title)
             st.line_chart(df_plot[[col]])
             any_chart = True
-    if not any_chart:
-        st.info("Kolom tren numerik yang dipilih tidak ditemukan.")
-    else:
+    if any_chart:
         csv_data = df_hist_lokasi.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="💾 Download Data Histori Hari Ini (CSV)",
@@ -164,31 +150,40 @@ if len(df_hist_lokasi) > 1:
             file_name=f"{lokasi}_histori_cuaca_hari_ini.csv",
             mime="text/csv"
         )
+    else:
+        st.info("Kolom tren tidak ditemukan.")
 else:
-    st.info("Belum ada cukup data histori untuk hari ini untuk menampilkan grafik tren.")
+    st.info("Belum ada cukup data histori untuk hari ini.")
 
 st.subheader("📈 Tren Cuaca Sepanjang Hari Ini (Gabungan Seluruh Lokasi)")
 df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == pd.Timestamp.now().date()]
 if not df_hari_ini.empty:
     df_hari_ini = df_hari_ini.copy()
     df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
-    df_tren = df_hari_ini.groupby('Jam').agg({
-        'Temperatur (°C)': 'mean',
-        'Kelembapan (%)': 'mean',
-        'Curah Hujan (mm)': 'sum'
-    }).dropna(how='all')
-    if not df_tren.empty:
-        if 'Curah Hujan (mm)' in df_tren.columns:
-            st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
-            st.line_chart(df_tren[['Curah Hujan (mm)']])
-        if 'Temperatur (°C)' in df_tren.columns:
-            st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
-            st.line_chart(df_tren[['Temperatur (°C)']])
-        if 'Kelembapan (%)' in df_tren.columns:
-            st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
-            st.line_chart(df_tren[['Kelembapan (%)']])
+    agg_dict = {}
+    if 'Temperatur (°C)' in df_hari_ini.columns:
+        agg_dict['Temperatur (°C)'] = 'mean'
+    if 'Kelembapan (%)' in df_hari_ini.columns:
+        agg_dict['Kelembapan (%)'] = 'mean'
+    if 'Curah Hujan (mm)' in df_hari_ini.columns:
+        agg_dict['Curah Hujan (mm)'] = 'sum'
+
+    if agg_dict:
+        df_tren = df_hari_ini.groupby('Jam').agg(agg_dict).dropna(how='all')
+        if not df_tren.empty:
+            if 'Curah Hujan (mm)' in df_tren.columns:
+                st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
+                st.line_chart(df_tren[['Curah Hujan (mm)']])
+            if 'Temperatur (°C)' in df_tren.columns:
+                st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
+                st.line_chart(df_tren[['Temperatur (°C)']])
+            if 'Kelembapan (%)' in df_tren.columns:
+                st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
+                st.line_chart(df_tren[['Kelembapan (%)']])
+        else:
+            st.info("Belum ada data tren gabungan hari ini.")
     else:
-        st.info("Belum ada data tren gabungan hari ini.")
+        st.info("Tidak ada kolom numerik yang tersedia untuk tren gabungan.")
 else:
     st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
 
