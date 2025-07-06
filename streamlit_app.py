@@ -15,11 +15,6 @@ st.markdown("""
             font-size: 2em !important;
             margin: 0.5em 0;
         }
-        .lokasi-label {
-            text-align: center;
-            font-size: 0.8em;
-            word-wrap: break-word;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -77,12 +72,7 @@ for idx, loc_name in enumerate(lokasi_urut):
             if icon_code:
                 icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
                 st.image(icon_url, use_container_width=True)
-            # label nama lokasi, otomatis wrap jika dua kata
-            st.markdown(
-                f"<div class='lokasi-label'>{'<br>'.join(loc_name.split())}</div>",
-                unsafe_allow_html=True
-            )
-            if st.button(loc_name):
+            if st.button(loc_name, key=f"btn-{loc_name}"):
                 selected_location = loc_name
 
 # Tren gabungan curah hujan semua lokasi
@@ -103,7 +93,6 @@ if not df_hari_ini.empty:
 else:
     st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
 
-# Lanjutkan ke lokasi yang dipilih
 lokasi = selected_location if selected_location else lokasi_urut[0]
 
 df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi]
