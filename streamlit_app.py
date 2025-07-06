@@ -3,7 +3,7 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 import os
-from pytz import timezone, UTC, FixedOffset
+from pytz import timezone
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
@@ -64,10 +64,7 @@ def render_summary_chart(df_summary, selected_period):
     st.subheader(f"📈 Tren Curah Hujan ({selected_period}) - Gabungan Seluruh Lokasi")
     wib_tz = timezone('Asia/Jakarta')
     today_wib = pd.Timestamp.now(tz=wib_tz).date()
-    if selected_period == "Hari ini":
-        filter_date = today_wib
-    else:  # Kemarin
-        filter_date = today_wib - pd.Timedelta(days=1)
+    filter_date = today_wib if selected_period == "Hari ini" else today_wib - pd.Timedelta(days=1)
 
     df_filtered = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == filter_date]
 
@@ -77,6 +74,17 @@ def render_summary_chart(df_summary, selected_period):
         df_tren = df_filtered.groupby('Jam')['Curah Hujan (mm)'].sum().dropna()
         if not df_tren.empty:
             st.line_chart(df_tren)
+
+            # Download data tren gabungan
+            csv_tren = df_tren.reset_index().rename(
+                columns={"Jam": "Jam WIB", "Curah Hujan (mm)": "Total Curah Hujan (mm)"}
+            ).to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="💾 Download Data Tren Gabungan (CSV)",
+                data=csv_tren,
+                file_name=f"tren_gabungan_{selected_period.replace(' ', '_').lower()}.csv",
+                mime="text/csv"
+            )
         else:
             st.info("Tidak ada data curah hujan pada periode ini.")
     else:
@@ -85,10 +93,7 @@ def render_summary_chart(df_summary, selected_period):
 def render_selected_location(df_summary, lokasi, selected_period):
     wib_tz = timezone('Asia/Jakarta')
     today_wib = pd.Timestamp.now(tz=wib_tz).date()
-    if selected_period == "Hari ini":
-        filter_date = today_wib
-    else:
-        filter_date = today_wib - pd.Timedelta(days=1)
+    filter_date = today_wib if selected_period == "Hari ini" else today_wib - pd.Timedelta(days=1)
 
     df_hist_lokasi = df_summary[
         (df_summary['Lokasi'] == lokasi) &
