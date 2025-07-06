@@ -15,6 +15,11 @@ st.markdown("""
             font-size: 2em !important;
             margin: 0.5em 0;
         }
+        .lokasi-label {
+            text-align: center;
+            font-size: 0.8em;
+            word-wrap: break-word;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -60,7 +65,7 @@ with st.sidebar:
     st.image("Logo_MMS.png", use_container_width=True)
     st.title("Dashboard Cuaca")
 
-st.subheader("📍 Pilih Lokasi dengan Klik Ikon")
+st.subheader("Kondisi Cuaca Terkini")
 data_lainnya_df = df_summary.drop_duplicates('Lokasi').set_index('Lokasi')
 selected_location = None
 cols = st.columns(len(lokasi_urut))
@@ -72,9 +77,33 @@ for idx, loc_name in enumerate(lokasi_urut):
             if icon_code:
                 icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
                 st.image(icon_url, use_container_width=True)
+            # label nama lokasi, otomatis wrap jika dua kata
+            st.markdown(
+                f"<div class='lokasi-label'>{'<br>'.join(loc_name.split())}</div>",
+                unsafe_allow_html=True
+            )
             if st.button(loc_name):
                 selected_location = loc_name
 
+# Tren gabungan curah hujan semua lokasi
+st.subheader("📈 Tren Curah Hujan Hari Ini (Gabungan Seluruh Lokasi)")
+df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == pd.Timestamp.now().date()]
+if not df_hari_ini.empty:
+    df_hari_ini = df_hari_ini.copy()
+    df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
+    df_hari_ini['Curah Hujan (mm)'] = pd.to_numeric(df_hari_ini['Curah Hujan (mm)'], errors='coerce')
+    if df_hari_ini['Curah Hujan (mm)'].notna().any():
+        df_tren = df_hari_ini.groupby('Jam')['Curah Hujan (mm)'].sum().dropna()
+        if not df_tren.empty:
+            st.line_chart(df_tren)
+        else:
+            st.info("Belum ada data curah hujan hari ini.")
+    else:
+        st.info("Data curah hujan tidak tersedia.")
+else:
+    st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
+
+# Lanjutkan ke lokasi yang dipilih
 lokasi = selected_location if selected_location else lokasi_urut[0]
 
 df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi]
@@ -155,44 +184,5 @@ if len(df_hist_lokasi) > 1:
 else:
     st.info("Belum ada cukup data histori untuk hari ini.")
 
-st.subheader("📈 Tren Cuaca Sepanjang Hari Ini (Gabungan Seluruh Lokasi)")
-df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == pd.Timestamp.now().date()]
-if not df_hari_ini.empty:
-    df_hari_ini = df_hari_ini.copy()
-    df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
-    agg_dict = {}
-    numeric_cols = []
-
-    for col, func in [
-        ('Temperatur (°C)', 'mean'),
-        ('Kelembapan (%)', 'mean'),
-        ('Curah Hujan (mm)', 'sum'),
-    ]:
-        if col in df_hari_ini.columns:
-            df_hari_ini[col] = pd.to_numeric(df_hari_ini[col], errors='coerce')
-            if df_hari_ini[col].notna().any():
-                agg_dict[col] = func
-                numeric_cols.append(col)
-
-    if agg_dict:
-        df_tren = df_hari_ini.groupby('Jam').agg(agg_dict).dropna(how='all')
-        if not df_tren.empty:
-            if 'Curah Hujan (mm)' in numeric_cols:
-                st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
-                st.line_chart(df_tren[['Curah Hujan (mm)']])
-            if 'Temperatur (°C)' in numeric_cols:
-                st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
-                st.line_chart(df_tren[['Temperatur (°C)']])
-            if 'Kelembapan (%)' in numeric_cols:
-                st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
-                st.line_chart(df_tren[['Kelembapan (%)']])
-        else:
-            st.info("Belum ada data tren gabungan hari ini.")
-    else:
-        st.info("Tidak ada kolom numerik yang tersedia untuk tren gabungan.")
-else:
-    st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
-
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
-
