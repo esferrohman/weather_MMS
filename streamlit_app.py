@@ -24,11 +24,26 @@ summary_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqD
 @st.cache_data(ttl=600)
 def load_summary(url):
     df = pd.read_csv(url)
+
+    # Parsing waktu: pastikan format sesuai spreadsheet dd/mm/yyyy hh:mm:ss
     if 'Update Terakhir (WIB)' in df.columns:
-        df['Update Terakhir (WIB)'] = pd.to_datetime(df['Update Terakhir (WIB)'], errors='coerce')
+        df['Update Terakhir (WIB)'] = pd.to_datetime(
+            df['Update Terakhir (WIB)'],
+            format='%d/%m/%Y %H:%M:%S',
+            errors='coerce'  # parsing gagal → NaT
+        )
+    else:
+        st.error("Kolom 'Update Terakhir (WIB)' tidak ditemukan di data CSV!")
+        st.stop()
+
     if 'Curah Hujan (mm)' in df.columns:
         df['Curah Hujan (mm)'] = df['Curah Hujan (mm)'].astype(str).str.replace(',', '.', regex=False)
         df['Curah Hujan (mm)'] = pd.to_numeric(df['Curah Hujan (mm)'], errors='coerce')
+
+    # Debug: tampilkan parsing waktu
+    st.write("Contoh parsing waktu:", df['Update Terakhir (WIB)'].head(5))
+    st.write("Jumlah baris gagal parsing (NaT):", df['Update Terakhir (WIB)'].isna().sum())
+
     return df
 
 try:
@@ -37,7 +52,7 @@ except Exception as e:
     st.error(f"Gagal mengambil data Summary: {e}")
     st.stop()
 
-# Urutkan data terbaru secara global supaya filter hari ini tetap akurat meski data terbaru di baris bawah spreadsheet
+# Urutkan data terbaru secara global supaya filter hari ini tetap akurat
 df_summary = df_summary.sort_values('Update Terakhir (WIB)', ascending=False)
 
 lokasi_order = [
