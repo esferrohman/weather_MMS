@@ -68,12 +68,12 @@ for idx, loc_name in enumerate(lokasi_urut):
     if loc_name in data_lainnya_df.index:
         row = data_lainnya_df.loc[loc_name]
         icon_code = str(row.get('Ikon', '') or '')
-        # nama lokasi ke baris kedua jika dua kata
         loc_label = loc_name.replace(" ", "\n")
         with cols[idx]:
             if icon_code:
                 icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
                 st.image(icon_url, use_container_width=True)
+            # hanya satu elemen interaktif: tombol nama lokasi
             if st.button(loc_label, key=f"btn-{loc_name}"):
                 selected_location = loc_name
 
