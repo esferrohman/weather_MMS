@@ -2,101 +2,181 @@ import streamlit as st
 import pandas as pd
 import folium
 from streamlit_folium import st_folium
-from pytz import timezone
+import matplotlib.pyplot as plt
+import io
 
-# Konfigurasi halaman
-st.set_page_config(
-    page_title="Cuaca Tol Tangerang-Merak",
-    layout="centered",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
-# CSS kustom
+# CSS untuk deskripsi cuaca besar
 st.markdown("""
     <style>
-        .block-container {padding-top: 2rem; padding-bottom: 2rem;}
-        .weather-header {text-align: center; margin-bottom: 1.5rem;}
-        [data-testid="stSidebar"] {background: #f8f9fa; padding: 2rem 1rem;}
-        .weather-metric {font-size: 1.1rem; margin-bottom: 0.5rem;}
+        html, body, [class*="css"] {
+            font-family: 'Segoe UI', sans-serif;
+        }
+        p.deskripsi-cuaca {
+            text-align: center;
+            font-size: 2em !important;
+            margin: 0.5em 0;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# Data configuration
-DATA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
-LOCATIONS = ["Bitung", "Cikupa", "Balaraja Timur", "Balaraja Barat", "Cikande",
-             "Ciujung", "Serang Timur", "Serang Barat", "Cilegon Timur", "Cilegon Barat", "Merak"]
+# Load data dari Google Sheets
+summary_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQF_6ZosMvgQQAAqDtKFXluP1Ad4wMnk4jYUVHQd6bc0NRRFBd4f4uc2euorAq98ua8uDP_1hls2AtN/pub?output=csv"
 
-@st.cache_data(ttl=300)
-def load_weather_data():
-    try:
-        df = pd.read_csv(DATA_URL)
-        required_cols = ['Lokasi', 'Update Terakhir', 'Ikon', 'Deskripsi Cuaca', 'Koordinat']
-        for col in required_cols:
-            if col not in df.columns:
-                st.error(f"Kolom '{col}' tidak ditemukan di data sumber.")
-                st.stop()
-        df['Waktu'] = pd.to_datetime(df['Update Terakhir'], format='%d/%m/%Y %H:%M:%S', errors='coerce')
-        return df.dropna(subset=['Waktu'])
-    except Exception as e:
-        st.error(f"Error loading data: {e}")
-        st.stop()
+@st.cache_data(ttl=600)
+def load_summary(url):
+    return pd.read_csv(url)
 
-# Sidebar controls
+try:
+    df_summary = load_summary(summary_url)
+except Exception as e:
+    st.error(f"Gagal mengambil data Summary: {e}")
+    st.stop()
+
+# Konversi kolom update ke datetime
+df_summary['Update Terakhir (WIB)'] = pd.to_datetime(df_summary['Update Terakhir (WIB)'], errors='coerce')
+
+# Urutkan supaya baris terbaru di atas
+df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascending=[True, False])
+
+# Sidebar: logo, dropdown urut manual, info waktu update
 with st.sidebar:
-    st.image('Logo_MMS.png', width=200)  # Tetap tampilkan logo
-    st.title("Pengaturan Cuaca")
-    location = st.selectbox("📍 Lokasi Stasiun Cuaca", LOCATIONS, index=0, key="loc_select")
-    period = st.radio("📅 Periode Data", ["Hari Ini", "Kemarin"], index=0, key="period_select")
-    show_map = st.toggle("🗺️ Tampilkan Peta Lokasi", value=True, key="map_toggle")
-
-# Main content
-def display_weather():
-    df = load_weather_data()
-
-    today = pd.Timestamp.now(tz=timezone('Asia/Jakarta')).date()
-    target_date = today if period == "Hari Ini" else today - pd.Timedelta(days=1)
-
-    station_data = df[(df['Lokasi'] == location) & (df['Waktu'].dt.date == target_date)]
-
-    if station_data.empty:
-        st.warning(f"Data tidak tersedia untuk {location} pada {period.lower()}.")
-        return
-
-    # Urutkan agar data terbaru di atas
-    station_data = station_data.sort_values('Waktu', ascending=False)
-    latest = station_data.iloc[0]
-
-    # Gunakan ikon default jika kosong
-    icon_code = latest['Ikon'] if pd.notna(latest['Ikon']) and latest['Ikon'].strip() else '01d'
-
-    st.markdown(f"""
-        <div class="weather-header">
-            <img src="http://openweathermap.org/img/wn/{icon_code}@2x.png" width=120>
-            <h3>{latest.get('Deskripsi Cuaca', 'N/A')}</h3>
-            <p><small>Terakhir update: {latest['Waktu'].strftime('%H:%M WIB')}</small></p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    cols = st.columns(2)
-    metrics = [
-        ("🌡️ Temperatur", f"{latest.get('Temperatur', 'N/A')}°C"),
-        ("💧 Kelembapan", f"{latest.get('Kelembapan', 'N/A')}%"),
-        ("🌬️ Kecepatan Angin", f"{latest.get('Kecepatan Angin', 'N/A')} m/s"),
-        ("🌧️ Curah Hujan", f"{latest.get('Curah Hujan', 'N/A')} mm")
+    st.image("Logo_MMS.png", use_container_width=True)
+    st.title("Dashboard Cuaca")
+    
+    # Urutan lokasi sesuai permintaan
+    lokasi_order = [
+        "Bitung", "Cikupa", "Balaraja Timur", "Balaraja Barat", "Cikande",
+        "Ciujung", "Serang Timur", "Serang Barat", "Cilegon Timur", "Cilegon Barat", "Merak"
     ]
+    
+    # Ambil lokasi unik dari data
+    lokasi_tersedia = df_summary['Lokasi'].dropna().unique()
+    
+    # Susun sesuai urutan permintaan, hanya lokasi yang ada di data
+    lokasi_urut = [loc for loc in lokasi_order if loc in lokasi_tersedia]
+    
+    lokasi = st.selectbox("📍 Pilih Lokasi", lokasi_urut)
+    
+    # Ambil histori & data terbaru lokasi terpilih
+    df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
+    data_terbaru = df_hist_lokasi.iloc[0]
+    
+    # Info update di bawah dropdown
+    waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
+    if pd.notnull(waktu_update):
+        st.markdown(
+            f"<p style='font-size:0.9em; color:#333;'>🕒 Data terakhir diperbarui:<br><b>{waktu_update.strftime('%d %B %Y %H:%M WIB')}</b></p>",
+            unsafe_allow_html=True
+        )
 
-    for i, (label, value) in enumerate(metrics):
-        cols[i % 2].markdown(f"<div class='weather-metric'>{label} {value}</div>", unsafe_allow_html=True)
+# Filter histori hanya untuk tanggal yang sama dengan data terbaru
+if pd.notnull(data_terbaru['Update Terakhir (WIB)']):
+    tanggal_terbaru = data_terbaru['Update Terakhir (WIB)'].date()
+    df_hist_lokasi = df_hist_lokasi[df_hist_lokasi['Update Terakhir (WIB)'].dt.date == tanggal_terbaru]
 
-    coords = latest.get('Koordinat')
-    if show_map and coords and isinstance(coords, str) and coords.strip():
-        try:
-            lat, lon = map(float, coords.strip().split(','))
-            m = folium.Map(location=[lat, lon], zoom_start=13)
-            folium.Marker([lat, lon], tooltip=location).add_to(m)
-            st_folium(m, width=400, height=300)
-        except Exception as e:
-            st.warning(f"Format koordinat tidak valid: {e}")
+# Header & metrik utama
+st.header(f"📊 Cuaca Terkini di {lokasi}")
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.metric("🌡️ Temperatur (°C)", data_terbaru.get('Temperatur (°C)', 'N/A'))
+    st.metric("💧 Kelembapan (%)", data_terbaru.get('Kelembapan (%)', 'N/A'))
+    st.metric("🌬️ Kecepatan Angin (m/s)", data_terbaru.get('Kecepatan Angin (m/s)', 'N/A'))
+    st.metric("🌧️ Curah Hujan (mm)", data_terbaru.get('Curah Hujan (mm)', 'N/A'))
 
-if __name__ == "__main__":
-    display_weather()
+with col2:
+    icon_code = str(data_terbaru.get('Ikon', '') or '')
+    if icon_code:
+        icon_url = f"http://openweathermap.org/img/wn/{icon_code}@4x.png"
+        st.image(icon_url, use_container_width=True)
+        st.markdown(
+            f"<p class='deskripsi-cuaca'>{data_terbaru.get('Deskripsi Cuaca', '')}</p>",
+            unsafe_allow_html=True
+        )
+    else:
+        st.write("Tidak ada ikon cuaca tersedia.")
+
+# Peta interaktif
+kode_koordinat = data_terbaru.get('Kode Koordinat', '')
+if isinstance(kode_koordinat, str) and "," in kode_koordinat:
+    try:
+        lat_str, lon_str = kode_koordinat.split(",")
+        lat, lon = float(lat_str.strip()), float(lon_str.strip())
+        m = folium.Map(location=[lat, lon], zoom_start=14)
+        folium.Marker([lat, lon], tooltip=lokasi, icon=folium.Icon(color="blue", icon="cloud")).add_to(m)
+        st_folium(m, width=700, height=400)
+    except Exception as e:
+        st.warning(f"Koordinat tidak valid: {e}")
+else:
+    st.warning("Koordinat tidak valid untuk lokasi ini.")
+
+# Kondisi cuaca lokasi lainnya
+st.subheader("📍 Kondisi Cuaca Lokasi Lainnya")
+
+# Ambil data terbaru per lokasi lain dan buat dict {lokasi: row}
+data_lainnya_df = (
+    df_summary[df_summary['Lokasi'] != lokasi]
+    .sort_values('Update Terakhir (WIB)', ascending=False)
+    .drop_duplicates('Lokasi')
+    .set_index('Lokasi')
+)
+
+# Susun data lainnya sesuai urutan dropdown
+lokasi_lain_urut = [loc for loc in lokasi_order if loc != lokasi and loc in data_lainnya_df.index]
+
+if lokasi_lain_urut:
+    cols = st.columns(len(lokasi_lain_urut))
+    for idx, loc_name in enumerate(lokasi_lain_urut):
+        row = data_lainnya_df.loc[loc_name]
+        icon_code = str(row.get('Ikon', '') or '')
+        curah_hujan = row.get('Curah Hujan (mm)', 0)
+
+        # Highlight jika ada hujan
+        bg_style = "background-color:#ffe6e6; padding:4px; border-radius:8px;" if pd.notnull(curah_hujan) and curah_hujan > 0 else ""
+
+        with cols[idx]:
+            st.markdown(
+                f"<div style='text-align:center; font-size:0.9em; {bg_style}'>{loc_name}</div>",
+                unsafe_allow_html=True
+            )
+            if icon_code:
+                icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
+                st.image(icon_url, use_container_width=True)
+else:
+    st.info("Tidak ada data kondisi lokasi lainnya yang tersedia.")
+
+# Grafik histori tren per parameter + satu tombol download CSV
+if len(df_hist_lokasi) > 1:
+    st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
+    df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
+    
+    param_list = [
+        ("Curah Hujan (mm)", "🌧️ Curah Hujan"),
+        ("Temperatur (°C)", "🌡️ Temperatur"),
+        ("Kelembapan (%)", "💧 Kelembapan")
+    ]
+    
+    any_chart = False
+    for col, title in param_list:
+        if col in df_plot.columns:
+            st.write(title)
+            st.line_chart(df_plot[[col]])
+            any_chart = True
+            
+    if not any_chart:
+        st.info("Kolom tren numerik yang dipilih tidak ditemukan.")
+    else:
+        # Tombol download CSV semua histori hari ini
+        csv_data = df_hist_lokasi.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="💾 Download Data Histori Hari Ini (CSV)",
+            data=csv_data,
+            file_name=f"{lokasi}_histori_cuaca_hari_ini.csv",
+            mime="text/csv"
+        )
+else:
+    st.info("Belum ada cukup data histori untuk hari ini untuk menampilkan grafik tren.")
+
+st.markdown("---")
+st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
