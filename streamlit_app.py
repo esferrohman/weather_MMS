@@ -73,7 +73,7 @@ for idx, loc_name in enumerate(lokasi_urut):
             if icon_code:
                 icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
                 st.image(icon_url, use_container_width=True)
-            # hanya satu elemen interaktif: tombol nama lokasi
+            # hanya satu teks: tombol lokasi
             if st.button(loc_label, key=f"btn-{loc_name}"):
                 selected_location = loc_name
 
