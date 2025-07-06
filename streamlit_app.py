@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Dashboard Cuaca Tol Tangerang-Merak", layout="wide")
 
-# CSS deskripsi cuaca besar
+# CSS deskripsi cuaca lebih besar
 st.markdown("""
     <style>
         html, body, [class*="css"] {
@@ -42,33 +42,21 @@ except Exception as e:
 # Urutkan data terbaru
 df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascending=[True, False])
 
-# Sidebar: logo, dropdown, info waktu update
+lokasi_order = [
+    "Bitung", "Cikupa", "Balaraja Timur", "Balaraja Barat", "Cikande",
+    "Ciujung", "Serang Timur", "Serang Barat", "Cilegon Timur", "Cilegon Barat", "Merak"
+]
+
+lokasi_tersedia = df_summary['Lokasi'].dropna().unique()
+lokasi_urut = [loc for loc in lokasi_order if loc in lokasi_tersedia]
+
+# Sidebar: logo
 with st.sidebar:
     st.image("Logo_MMS.png", use_container_width=True)
     st.title("Dashboard Cuaca")
-    
-    lokasi_order = [
-        "Bitung", "Cikupa", "Balaraja Timur", "Balaraja Barat", "Cikande",
-        "Ciujung", "Serang Timur", "Serang Barat", "Cilegon Timur", "Cilegon Barat", "Merak"
-    ]
-    
-    lokasi_tersedia = df_summary['Lokasi'].dropna().unique()
-    lokasi_urut = [loc for loc in lokasi_order if loc in lokasi_tersedia]
-    
-    lokasi = st.selectbox("📍 Pilih Lokasi", lokasi_urut)
-    
-    df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
-    data_terbaru = df_hist_lokasi.iloc[0]
-    
-    waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
-    if pd.notnull(waktu_update):
-        st.markdown(
-            f"<p style='font-size:0.9em; color:#333;'>🕒 Data terakhir diperbarui:<br><b>{waktu_update.strftime('%d %B %Y %H:%M WIB')}</b></p>",
-            unsafe_allow_html=True
-        )
 
-# Kondisi cuaca terkini (DIPINDAH KE ATAS)
-st.subheader("📍 Kondisi Cuaca Terkini")
+# Pilih lokasi dengan ikon interaktif
+st.subheader("📍 Pilih Lokasi dengan Klik Ikon")
 data_lainnya_df = (
     df_summary
     .sort_values('Update Terakhir (WIB)', ascending=False)
@@ -76,26 +64,33 @@ data_lainnya_df = (
     .set_index('Lokasi')
 )
 
-lokasi_lain_urut = [loc for loc in lokasi_order if loc in data_lainnya_df.index]
-
-if lokasi_lain_urut:
-    cols = st.columns(len(lokasi_lain_urut))
-    for idx, loc_name in enumerate(lokasi_lain_urut):
+selected_location = None
+cols = st.columns(len(lokasi_urut))
+for idx, loc_name in enumerate(lokasi_urut):
+    if loc_name in data_lainnya_df.index:
         row = data_lainnya_df.loc[loc_name]
         icon_code = str(row.get('Ikon', '') or '')
-        curah_hujan = row.get('Curah Hujan (mm)', 0)
-        bg_style = "background-color:#ffe6e6; padding:4px; border-radius:8px;" if pd.notnull(curah_hujan) and curah_hujan > 0 else ""
-
         with cols[idx]:
-            st.markdown(
-                f"<div style='text-align:center; font-size:0.9em; {bg_style}'>{loc_name}</div>",
-                unsafe_allow_html=True
-            )
             if icon_code:
                 icon_url = f"http://openweathermap.org/img/wn/{icon_code}@2x.png"
                 st.image(icon_url, use_container_width=True)
-else:
-    st.info("Tidak ada data kondisi lokasi yang tersedia.")
+            if st.button(loc_name):
+                selected_location = loc_name
+
+# Default ke lokasi pertama jika belum ada yang diklik
+lokasi = selected_location if selected_location else lokasi_urut[0]
+
+# Data histori dan data terbaru
+df_hist_lokasi = df_summary[df_summary['Lokasi'] == lokasi].sort_values('Update Terakhir (WIB)', ascending=False)
+data_terbaru = df_hist_lokasi.iloc[0]
+
+# Info waktu update
+waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
+if pd.notnull(waktu_update):
+    st.markdown(
+        f"<p style='font-size:0.9em; color:#333;'>🕒 Data terakhir diperbarui:<br><b>{waktu_update.strftime('%d %B %Y %H:%M WIB')}</b></p>",
+        unsafe_allow_html=True
+    )
 
 # Filter histori hanya data per jam hari ini
 if pd.notnull(data_terbaru['Update Terakhir (WIB)']):
