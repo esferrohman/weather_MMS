@@ -43,6 +43,7 @@ def load_weather_data():
 
 # Sidebar controls
 with st.sidebar:
+    st.image('Logo_MMS.png', width=200)  # Tetap tampilkan logo
     st.title("Pengaturan Cuaca")
     location = st.selectbox("📍 Lokasi Stasiun Cuaca", LOCATIONS, index=0, key="loc_select")
     period = st.radio("📅 Periode Data", ["Hari Ini", "Kemarin"], index=0, key="period_select")
