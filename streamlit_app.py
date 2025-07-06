@@ -161,23 +161,29 @@ if not df_hari_ini.empty:
     df_hari_ini = df_hari_ini.copy()
     df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
     agg_dict = {}
-    if 'Temperatur (°C)' in df_hari_ini.columns:
-        agg_dict['Temperatur (°C)'] = 'mean'
-    if 'Kelembapan (%)' in df_hari_ini.columns:
-        agg_dict['Kelembapan (%)'] = 'mean'
-    if 'Curah Hujan (mm)' in df_hari_ini.columns:
-        agg_dict['Curah Hujan (mm)'] = 'sum'
+    numeric_cols = []
+
+    for col, func in [
+        ('Temperatur (°C)', 'mean'),
+        ('Kelembapan (%)', 'mean'),
+        ('Curah Hujan (mm)', 'sum'),
+    ]:
+        if col in df_hari_ini.columns:
+            df_hari_ini[col] = pd.to_numeric(df_hari_ini[col], errors='coerce')
+            if df_hari_ini[col].notna().any():
+                agg_dict[col] = func
+                numeric_cols.append(col)
 
     if agg_dict:
         df_tren = df_hari_ini.groupby('Jam').agg(agg_dict).dropna(how='all')
         if not df_tren.empty:
-            if 'Curah Hujan (mm)' in df_tren.columns:
+            if 'Curah Hujan (mm)' in numeric_cols:
                 st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
                 st.line_chart(df_tren[['Curah Hujan (mm)']])
-            if 'Temperatur (°C)' in df_tren.columns:
+            if 'Temperatur (°C)' in numeric_cols:
                 st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
                 st.line_chart(df_tren[['Temperatur (°C)']])
-            if 'Kelembapan (%)' in df_tren.columns:
+            if 'Kelembapan (%)' in numeric_cols:
                 st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
                 st.line_chart(df_tren[['Kelembapan (%)']])
         else:
@@ -189,3 +195,4 @@ else:
 
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
+
