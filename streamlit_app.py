@@ -136,7 +136,7 @@ if isinstance(kode_koordinat, str) and "," in kode_koordinat:
 else:
     st.warning("Koordinat tidak valid untuk lokasi ini.")
 
-# Grafik histori tren
+# Grafik histori tren per lokasi
 if len(df_hist_lokasi) > 1:
     st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
     df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
@@ -166,6 +166,36 @@ if len(df_hist_lokasi) > 1:
         )
 else:
     st.info("Belum ada cukup data histori untuk hari ini untuk menampilkan grafik tren.")
+
+# Grafik tren cuaca seluruh lokasi hari ini
+st.subheader("📈 Tren Cuaca Sepanjang Hari Ini (Gabungan Seluruh Lokasi)")
+
+if 'Update Terakhir (WIB)' in df_summary.columns:
+    df_hari_ini = df_summary[df_summary['Update Terakhir (WIB)'].dt.date == pd.Timestamp.now().date()]
+    if not df_hari_ini.empty:
+        df_hari_ini = df_hari_ini.copy()
+        df_hari_ini['Jam'] = df_hari_ini['Update Terakhir (WIB)'].dt.floor('H')
+        
+        df_tren = df_hari_ini.groupby('Jam').agg({
+            'Temperatur (°C)': 'mean',
+            'Kelembapan (%)': 'mean',
+            'Curah Hujan (mm)': 'sum'
+        }).dropna(how='all')
+        
+        if not df_tren.empty:
+            if 'Curah Hujan (mm)' in df_tren.columns:
+                st.write("🌧️ Total Curah Hujan per Jam (mm) - Semua Lokasi")
+                st.line_chart(df_tren[['Curah Hujan (mm)']])
+            if 'Temperatur (°C)' in df_tren.columns:
+                st.write("🌡️ Rata-rata Temperatur per Jam (°C) - Semua Lokasi")
+                st.line_chart(df_tren[['Temperatur (°C)']])
+            if 'Kelembapan (%)' in df_tren.columns:
+                st.write("💧 Rata-rata Kelembapan per Jam (%) - Semua Lokasi")
+                st.line_chart(df_tren[['Kelembapan (%)']])
+        else:
+            st.info("Belum ada data tren gabungan hari ini.")
+    else:
+        st.info("Belum ada data cuaca untuk hari ini dari semua lokasi.")
 
 st.markdown("---")
 st.caption("📊 Dashboard Cuaca Real-Time | Dibuat oleh [esferrohman].")
