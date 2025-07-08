@@ -42,7 +42,7 @@ except Exception as e:
 # Urutkan data terbaru
 df_summary = df_summary.sort_values(['Lokasi', 'Update Terakhir (WIB)'], ascending=[True, False])
 
-# Sidebar: logo, dropdown, info waktu update
+# Sidebar
 with st.sidebar:
     st.image("Logo_MMS.png", use_container_width=True)
     st.title("Dashboard Cuaca")
@@ -67,7 +67,7 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-# Kondisi cuaca terkini (DIPINDAH KE ATAS)
+# Kondisi cuaca terkini (semua lokasi)
 st.subheader("📍 Kondisi Cuaca Terkini")
 data_lainnya_df = (
     df_summary
@@ -97,7 +97,7 @@ if lokasi_lain_urut:
 else:
     st.info("Tidak ada data kondisi lokasi yang tersedia.")
 
-# Filter histori hanya data per jam hari ini
+# Filter histori hanya hari ini
 if pd.notnull(data_terbaru['Update Terakhir (WIB)']):
     tanggal_terbaru = data_terbaru['Update Terakhir (WIB)'].date()
     df_hist_lokasi = df_hist_lokasi[df_hist_lokasi['Update Terakhir (WIB)'].dt.date == tanggal_terbaru]
@@ -136,12 +136,14 @@ if isinstance(kode_koordinat, str) and "," in kode_koordinat:
         m = folium.Map(location=[lat, lon], zoom_start=14)
         folium.Marker([lat, lon], tooltip=lokasi, icon=folium.Icon(color="blue", icon="cloud")).add_to(m)
         st_folium(m, width=700, height=400)
+        # PERBAIKAN JARAK KE BAWAH
+        st.markdown("<div style='margin-top:-1em;'></div>", unsafe_allow_html=True)
     except Exception as e:
         st.warning(f"Koordinat tidak valid: {e}")
 else:
     st.warning("Koordinat tidak valid untuk lokasi ini.")
 
-# Grafik histori tren
+# Grafik histori
 if len(df_hist_lokasi) > 1:
     st.subheader(f"📈 Tren Histori Cuaca Hari Ini di {lokasi}")
     df_plot = df_hist_lokasi.set_index('Update Terakhir (WIB)')
