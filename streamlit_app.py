@@ -63,7 +63,7 @@ with st.sidebar:
     waktu_update = data_terbaru.get('Update Terakhir (WIB)', None)
     if pd.notnull(waktu_update):
         st.markdown(
-            f"<p style='font-size:0.9em; color:#333;'>🕒 Data terakhir diperbarui:<br><b>{waktu_update.strftime('%D %M %Y %H:%M WIB')}</b></p>",
+            f"<p style='font-size:0.9em; color:#333;'>🕒 Data terakhir diperbarui:<br><b>{waktu_update.strftime('%B %D %Y %H:%M WIB')}</b></p>",
             unsafe_allow_html=True
         )
 
