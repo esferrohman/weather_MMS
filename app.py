@@ -83,7 +83,7 @@ if lokasi_lain_urut:
             st.markdown(f"<div style='text-align:center; font-size:0.9em; {bg}'>{loc_name}</div>", unsafe_allow_html=True)
             icon_code = str(row.get('Ikon', '') or '')
             if icon_code:
-                st.image(f"http://openweathermap.org/img/wn/{icon_code}@2x.png", use_column_width=True)
+                st.image(f"http://openweathermap.org/img/wn/{icon_code}@2x.png", use_container_width=True)
 else:
     st.info("Tidak ada data kondisi lokasi yang tersedia.")
 
